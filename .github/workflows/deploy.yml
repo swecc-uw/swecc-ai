@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
 
 env:
-  SERVICE_NAME: 'server'
+  SERVICE_NAME: 'ai-server'
   NETWORK: 'prod_swecc-network'
   CPU_LIMIT: '0.5'
   MEMORY_LIMIT: '512M'
   CPU_RESERVE: '0.3'
   MEMORY_RESERVE: '256M'
-  IMAGE: 'swecc-server'
+  IMAGE: 'swecc-ai'
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
   CONFIG_NAME: 'ai_env'
