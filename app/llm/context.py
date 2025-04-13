@@ -54,10 +54,10 @@ class ContextManager:
             and (datetime.now() - self.context[key][-1].timestamp).total_seconds()
             > self.context_configs[key].context_invalidation_time_seconds
         ):
-            logging.info("Clearing context...")
+            logger.info("Clearing context...")
             self.context[key].clear()
 
-    def add_mesage_to_context(self, key, message: Message):
+    def add_message_to_context(self, key, message: Message):
         if key not in self.context:
             raise ValueError(f"Context key {key} not found.")
         self._update_context(key, message)

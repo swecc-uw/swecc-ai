@@ -25,9 +25,9 @@ class Gemini:
             self.client = genai.Client()
             self.initialized = True
 
-    async def prompt_model(self, prompt, system_intruction=None):
+    async def prompt_model(self, prompt, system_instruction=None):
         config = types.GenerateContentConfig(
-            system_instruction=system_intruction,
+            system_instruction=system_instruction,
             max_output_tokens=500,
             temperature=0.7,
         )
@@ -45,7 +45,7 @@ class Gemini:
 
     async def prompt_file(self, bytes, prompt):
         response = self.client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=self.model_name,
             contents=[
                 types.Part.from_bytes(
                     data=bytes,
