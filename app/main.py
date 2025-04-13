@@ -1,8 +1,30 @@
 from fastapi import FastAPI
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from .mq import initialize_rabbitmq, shutdown_rabbitmq
+from .mq.consumers import *
+import asyncio
+import logging
 
-app = FastAPI()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Perform startup tasks here
+    await initialize_rabbitmq(asyncio.get_event_loop())
+    yield
+    # Perform shutdown tasks here
+    await shutdown_rabbitmq()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
