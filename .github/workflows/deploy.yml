@@ -1,0 +1,134 @@
+name: Deploy AI Service
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  SERVICE_NAME: 'server'
+  NETWORK: 'prod_swecc-network'
+  CPU_LIMIT: '0.5'
+  MEMORY_LIMIT: '512M'
+  CPU_RESERVE: '0.3'
+  MEMORY_RESERVE: '256M'
+  IMAGE: 'swecc-server'
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  CONFIG_NAME: 'ai_env'
+
+jobs:
+  push_to_dockerhub:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy_to_swarm:
+    runs-on:
+      group: EC2
+      labels: [self-hosted, deploy]
+
+    needs: push_to_dockerhub
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub on deployment server
+        uses: docker/login-action@v1
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Pull latest image
+        run: |
+          docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+
+      - name: Prepare environment file
+        run: |
+          echo "Parsing environment variables..."
+          docker config inspect ${{ env.CONFIG_NAME }} --pretty | sed -n '/Data:/,$ p' | sed '1d' > env_file.txt || echo "No config found"
+
+      - name: Check for existing service
+        id: check_service
+        run: |
+          if docker service ls | grep -q "${{ env.SERVICE_NAME }}"; then
+            echo "existing_service=true" >> $GITHUB_OUTPUT
+          else
+            echo "existing_service=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create staging service for zero-downtime deployment
+        id: create_staging
+        if: steps.check_service.outputs.existing_service == 'true'
+        run: |
+          STAGING_NAME="${{ env.SERVICE_NAME }}-staging"
+
+          echo "Creating temporary service: $STAGING_NAME"
+          docker service create \
+            --name "$STAGING_NAME" \
+            --network ${{ env.NETWORK }} \
+            --env-file env_file.txt \
+            --replicas 1 \
+            --restart-condition any \
+            --limit-cpu ${{ env.CPU_LIMIT }} \
+            --limit-memory ${{ env.MEMORY_LIMIT }} \
+            --reserve-cpu ${{ env.CPU_RESERVE }} \
+            --reserve-memory ${{ env.MEMORY_RESERVE }} \
+            --with-registry-auth \
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+
+          echo "New service is healthy - promoting staging service to production"
+          docker service update \
+            --update-parallelism 1 \
+            --hostname ${{ env.SERVICE_NAME }} \
+            $STAGING_NAME
+
+          echo "Removing old service"
+          docker service rm ${{ env.SERVICE_NAME }}
+
+          echo "staging_success=true" >> $GITHUB_OUTPUT
+
+      - name: Create new service
+        if: steps.check_service.outputs.existing_service == 'false' || steps.create_staging.outputs.staging_success == 'true'
+        run: |
+          echo "Creating new prod service for ${{ env.SERVICE_NAME }}"
+          docker service create \
+            --name ${{ env.SERVICE_NAME }} \
+            --network ${{ env.NETWORK }} \
+            --env-file env_file.txt \
+            --replicas 1 \
+            --restart-condition any \
+            --update-parallelism 1 \
+            --update-delay 30s \
+            --update-order start-first \
+            --update-failure-action continue \
+            --limit-cpu ${{ env.CPU_LIMIT }} \
+            --limit-memory ${{ env.MEMORY_LIMIT }} \
+            --reserve-cpu ${{ env.CPU_RESERVE }} \
+            --reserve-memory ${{ env.MEMORY_RESERVE }} \
+            --with-registry-auth \
+            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE }}:latest
+
+      - name: Cleanup
+        run: |
+          docker service rm ${{ env.SERVICE_NAME }}-staging || true
+          rm env_file.txt || true
