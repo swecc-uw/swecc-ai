@@ -76,19 +76,19 @@ async def complete(key: str, message: CompleteRequest, response: Response):
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": str(e)}
 
-    response = await client.prompt_model(
+    model_response = await client.prompt_model(
         prompt, ctx.context_configs[key].system_instruction
     )
     ctx.add_message_to_context(
         key,
         Message(
             message=message.message,
-            response=response,
+            response=model_response,
             timestamp=datetime.now(),
             metadata=message.metadata,
         ),
     )
-    return {"response": response}
+    return {"response": model_response}
 
 
 if __name__ == "__main__":
