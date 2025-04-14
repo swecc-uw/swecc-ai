@@ -32,13 +32,9 @@ class ContextManager:
         self.context_configs[key] = ContextConfig(**kwargs)
 
     def _update_context(self, key: str, message: Message):
-        current_length = sum(map(len, self.context[key]))
+        current_length = sum(map(len, self.context[key])) + len(message)
         max_length = self.context_configs[key].max_context_length
-        length_of_message = len(message)
-        while (
-            len(self.context[key]) > 0
-            and current_length + length_of_message >= max_length
-        ):
+        while len(self.context[key]) > 0 and current_length >= max_length:
             current_length -= len(self.context[key].popleft())
 
         self.context[key].append(message)
