@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 import logging
 from typing import Optional
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class Gemini:
         try:
             response = await self.client.aio.models.generate_content(
                 model=self.model_name,
-                contents=f"{prompt}",
+                contents=prompt,
                 config=config,
             )
 
@@ -56,3 +57,15 @@ class Gemini:
             ],
         )
         return response.text
+
+    async def prompt_files(self, files: dict[(str, str), bytes], prompt: str):
+        """
+        files: dict[(str, str), bytes] where key is (filename, mime_type)
+        prompt: str, the prompt to give to the model
+        returns: Dictionary containing the filename and the corresponding response
+        """
+        results = await asyncio.gather(
+            self.prompt_file(file_bytes, prompt, mime_type)
+            for (_, mime_type), file_bytes in files.items()
+        )
+        return dict(zip(files.keys(), results))
