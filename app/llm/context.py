@@ -34,8 +34,10 @@ class ContextManager:
     def _update_context(self, key: str, message: Message):
         current_length = sum(map(len, self.context[key]))
         max_length = self.context_configs[key].max_context_length
+        length_of_message = len(message)
         while (
-            len(self.context[key]) > 0 and current_length + len(message) >= max_length
+            len(self.context[key]) > 0
+            and current_length + length_of_message >= max_length
         ):
             current_length -= len(self.context[key].popleft())
 
