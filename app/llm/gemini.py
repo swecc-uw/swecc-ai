@@ -24,7 +24,7 @@ class Gemini:
             if self.api_key is None:
                 raise ValueError("GEMINI_API_KEY environment variable not set")
 
-            self.client = genai.Client()
+            self.client = genai.Client(api_key=self.api_key)
             self.initialized = True
 
     async def prompt_model(self, prompt: str, system_instruction: Optional[str] = None):
