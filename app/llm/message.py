@@ -21,10 +21,10 @@ class Message:
         return prompt
 
     def __str__(self):
-        return f"<CTXITEM>Prompt: {self.format_prompt()}\nResponse: {self.response}</CTXITEM>"
+        return f"Prompt: {self.format_prompt()}\nResponse: {self.response}"
 
     def __repr__(self):
-        return f"<CTXITEM>Prompt: {self.format_prompt()}\nResponse: {self.response}</CTXITEM>"
+        return f"Prompt: {self.format_prompt()}\nResponse: {self.response}"
 
     def __len__(self):
         return len(str(self))
