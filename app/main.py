@@ -42,23 +42,20 @@ app.add_middleware(
 )
 
 
-# Check if an inference user is registered
-@app.get("/status/{key}")
-def register_status(key: str):
-    return {"is_registered": ctx.is_registered(key)}
-
-
-class RegisterRequest(BaseModel):
+class ConfigRequest(BaseModel):
     max_context_length: int
     context_invalidation_time_seconds: int
     system_instruction: str
 
 
 # Register an inference user with the given key
-@app.post("/register/{key}", status_code=status.HTTP_201_CREATED)
-def register(key: str, config: RegisterRequest):
-    ctx.add_context_config(key, **config.model_dump())
-    return ctx.context_configs
+# If context already exists, it won't change at all
+# Users should call this route before making any completions
+@app.post("/inference/{key}/config")
+def config(key: str, config: ConfigRequest):
+    if not key in ctx.context_configs:
+        ctx.add_context_config(key, **config.model_dump())
+    return {"config": ctx.context_configs[key]}
 
 
 class CompleteRequest(BaseModel):
@@ -68,7 +65,7 @@ class CompleteRequest(BaseModel):
 
 # Get a completion for the given message
 # Fails with a 400 if the key isn't registered
-@app.post("/complete/{key}", status_code=status.HTTP_201_CREATED)
+@app.post("/inferece/{key}/complete", status_code=status.HTTP_201_CREATED)
 async def complete(key: str, message: CompleteRequest, response: Response):
     try:
         prompt = ctx.contextualize_prompt(key, message.message)

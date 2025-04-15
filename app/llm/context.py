@@ -30,7 +30,8 @@ class ContextManager:
 
     def add_context_config(self, key: str, **kwargs):
         self.context_configs[key] = ContextConfig(**kwargs)
-        self.context[key] = deque([])
+        if key not in self.context:
+            self.context[key] = deque()
 
     def _update_context(self, key: str, message: Message):
         current_length = sum(map(len, self.context[key])) + len(message)
