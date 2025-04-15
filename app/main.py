@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Response, status as APIStatus
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -11,9 +11,12 @@ from .llm.context import ContextManager
 from .llm.message import Message
 from pydantic import BaseModel
 from datetime import datetime
+from .polling import Status, PollingRequest, generate_request_id
 
 client = Gemini()
 ctx = ContextManager()
+
+waiting_requests: dict[str, PollingRequest] = {}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,29 +66,85 @@ class CompleteRequest(BaseModel):
     metadata: dict
 
 
-# Get a completion for the given message
-# Fails with a 400 if the key isn't registered
-@app.post("/inferece/{key}/complete", status_code=status.HTTP_201_CREATED)
-async def complete(key: str, message: CompleteRequest, response: Response):
+async def complete_task(request_id: str, key: str, message: CompleteRequest):
+    waiting_requests[request_id].status = Status.IN_PROGRESS
     try:
         prompt = ctx.contextualize_prompt(key, message.message)
+        model_response = await client.prompt_model(
+            prompt, ctx.context_configs[key].system_instruction
+        )
+        ctx.add_message_to_context(
+            key,
+            Message(
+                message=message.message,
+                response=model_response,
+                timestamp=datetime.now(),
+                metadata=message.metadata,
+            ),
+        )
     except ValueError as e:
-        response.status_code = status.HTTP_400_BAD_REQUEST
-        return {"error": str(e)}
+        waiting_requests[request_id].status = Status.ERROR
+        waiting_requests[request_id].error = str(e)
+        logger.error(f"Error processing request {request_id}: {str(e)}")
+        return
+    except Exception as e:
+        waiting_requests[request_id].status = Status.ERROR
+        waiting_requests[request_id].error = str(e)
+        logger.error(f"Error processing request {request_id}: {str(e)}")
+        return
 
-    model_response = await client.prompt_model(
-        prompt, ctx.context_configs[key].system_instruction
+    waiting_requests[request_id].status = Status.SUCCESS
+    waiting_requests[request_id].result = model_response
+    logger.info(
+        f"Completed request {request_id} for key {key}. Response: {model_response}"
     )
-    ctx.add_message_to_context(
-        key,
-        Message(
-            message=message.message,
-            response=model_response,
-            timestamp=datetime.now(),
-            metadata=message.metadata,
-        ),
+
+
+# Get a completion for the given message
+# Fails with a 400 if the key isn't registered
+@app.post("/inference/{key}/complete")
+async def complete(key: str, message: CompleteRequest):
+    request_id = generate_request_id()
+    waiting_requests[request_id] = PollingRequest(
+        request_id=request_id,
+        status=Status.PENDING,
+        result=None,
+        error=None,
     )
-    return {"response": model_response}
+    asyncio.create_task(
+        complete_task(
+            request_id,
+            key,
+            message,
+        )
+    )
+    return {"request_id": request_id}
+
+
+# Get the status of a request
+@app.get("/inference/status/{request_id}")
+async def status(request_id: str, response: Response):
+    if request_id not in waiting_requests:
+        response.status_code = APIStatus.HTTP_404_NOT_FOUND
+        return {"error": "Request ID not found."}
+    request = waiting_requests[request_id]
+
+    if request.status == Status.PENDING:
+        return {"status": "pending"}
+    elif request.status == Status.IN_PROGRESS:
+        return {"status": "in_progress"}
+    elif request.status == Status.SUCCESS:
+        result = request.result
+        del waiting_requests[request_id]
+        return {"status": "success", "result": result}
+    elif request.status == Status.ERROR:
+        error = request.error
+        del waiting_requests[request_id]
+        return {"status": "error", "error": error}
+    else:
+        # Unreachable
+        response.status_code = APIStatus.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": "Unknown status."}
 
 
 if __name__ == "__main__":
