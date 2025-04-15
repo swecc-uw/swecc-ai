@@ -102,7 +102,7 @@ async def complete_task(request_id: str, key: str, message: CompleteRequest):
 
 # Get a completion for the given message
 # Fails with a 400 if the key isn't registered
-@app.post("/inference/{key}/complete")
+@app.post("/inference/{key}/complete", status=APIStatus.HTTP_202_ACCEPTED)
 async def complete(key: str, message: CompleteRequest):
     request_id = generate_request_id()
     waiting_requests[request_id] = PollingRequest(
@@ -140,6 +140,7 @@ async def status(request_id: str, response: Response):
     elif request.status == Status.ERROR:
         error = request.error
         del waiting_requests[request_id]
+        response.status_code = APIStatus.HTTP_500_INTERNAL_SERVER_ERROR
         return {"status": "error", "error": error}
     else:
         # Unreachable
