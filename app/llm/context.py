@@ -30,6 +30,8 @@ class ContextManager:
 
     def add_context_config(self, key: str, **kwargs):
         self.context_configs[key] = ContextConfig(**kwargs)
+        if key not in self.context:
+            self.context[key] = deque()
 
     def _update_context(self, key: str, message: Message):
         current_length = sum(map(len, self.context[key])) + len(message)
@@ -62,3 +64,6 @@ class ContextManager:
         context = self.context[key]
         context_str = "\n".join([str(msg) for msg in context])
         return f"<CONTEXT>\n{context_str}\n</CONTEXT>\n{prompt}"
+
+    def is_registered(self, key: str):
+        return key in self.context_configs
