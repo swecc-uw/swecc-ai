@@ -103,7 +103,7 @@ jobs:
             $STAGING_NAME
 
           echo "Removing old service"
-          docker service rm ${{ env.SERVICE_NAME }}
+          docker service rm $STAGING_NAME
 
           echo "staging_success=true" >> $GITHUB_OUTPUT
 
