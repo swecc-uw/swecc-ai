@@ -102,7 +102,7 @@ async def complete_task(request_id: str, key: str, message: CompleteRequest):
 
 # Get a completion for the given message
 # Fails with a 400 if the key isn't registered
-@app.post("/inference/{key}/complete", status=APIStatus.HTTP_202_ACCEPTED)
+@app.post("/inference/{key}/complete", status_code=APIStatus.HTTP_202_ACCEPTED)
 async def complete(key: str, message: CompleteRequest):
     request_id = generate_request_id()
     waiting_requests[request_id] = PollingRequest(
