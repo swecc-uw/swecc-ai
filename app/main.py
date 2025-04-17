@@ -64,15 +64,21 @@ def config(key: str, config: ConfigRequest):
 class CompleteRequest(BaseModel):
     message: str
     metadata: dict
+    needs_context: bool = True
 
+def format_message(message: CompleteRequest) -> str:
+    return "".join(f"{key}: {value}\n" for key, value in message.metadata.items()) + f"Message: {message.message}\n"
 
-async def complete_task(request_id: str, key: str, message: CompleteRequest):
+async def complete_task(request_id: str, key: str, message: CompleteRequest, needs_context: bool = True):
     waiting_requests[request_id].status = Status.IN_PROGRESS
     try:
-        prompt = ctx.contextualize_prompt(key, message.message)
+        message_parsed = format_message(message)
+        prompt = ctx.contextualize_prompt(key, message_parsed) if needs_context else message_parsed
         model_response = await client.prompt_model(
             prompt, ctx.context_configs[key].system_instruction
         )
+        logger.info(f"\n{prompt}\n")
+
         ctx.add_message_to_context(
             key,
             Message(
@@ -101,7 +107,6 @@ async def complete_task(request_id: str, key: str, message: CompleteRequest):
 
 
 # Get a completion for the given message
-# Fails with a 400 if the key isn't registered
 @app.post("/inference/{key}/complete", status_code=APIStatus.HTTP_202_ACCEPTED)
 async def complete(key: str, message: CompleteRequest):
     request_id = generate_request_id()
@@ -116,6 +121,7 @@ async def complete(key: str, message: CompleteRequest):
             request_id,
             key,
             message,
+            needs_context=message.needs_context,
         )
     )
     return {"request_id": request_id}
