@@ -69,11 +69,11 @@ class CompleteRequest(BaseModel):
 def format_message(message: CompleteRequest) -> str:
     return "".join(f"{key}: {value}\n" for key, value in message.metadata.items()) + f"Message: {message.message}\n"
 
-async def complete_task(request_id: str, key: str, message: CompleteRequest, needs_context: bool = True):
+async def complete_task(request_id: str, key: str, message: CompleteRequest):
     waiting_requests[request_id].status = Status.IN_PROGRESS
     try:
         message_parsed = format_message(message)
-        prompt = ctx.contextualize_prompt(key, message_parsed) if needs_context else message_parsed
+        prompt = ctx.contextualize_prompt(key, message_parsed) if message.needs_context else message_parsed
         model_response = await client.prompt_model(
             prompt, ctx.context_configs[key].system_instruction
         )
@@ -121,7 +121,6 @@ async def complete(key: str, message: CompleteRequest):
             request_id,
             key,
             message,
-            needs_context=message.needs_context,
         )
     )
     return {"request_id": request_id}
