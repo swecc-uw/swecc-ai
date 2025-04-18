@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  SERVICE_NAME: 'ai-server'
+  SERVICE_NAME: 'ai'
   NETWORK: 'prod_swecc-network'
   CPU_LIMIT: '0.5'
   MEMORY_LIMIT: '256M'
