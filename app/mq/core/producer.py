@@ -9,9 +9,8 @@ MAX_RETRIES = 3
 
 class AsyncRabbitProducer:
 
-    def __init__(self, amqp_url, exchange, exchange_type, routing_key=None, loop=None):
+    def __init__(self, exchange, exchange_type, routing_key=None, loop=None):
         # config
-        self._url = amqp_url
         self._exchange = exchange
         self._exchange_type = exchange_type
         self._default_routing_key = routing_key
@@ -20,7 +19,7 @@ class AsyncRabbitProducer:
         self._connection = None
         self._channel = None
         self._connected = False
-        self._ready = asyncio.Event(loop=loop)
+        self._ready = asyncio.Event()
 
     async def connect(self, loop=None):
 
@@ -31,7 +30,6 @@ class AsyncRabbitProducer:
 
         self._connection = await ConnectionManager(loop=loop).connect()
 
-        LOGGER.info(f"Producer connecting to {self._url} for exchange {self._exchange}")
         if not self._connection:
             LOGGER.error(f"Failed to create connection for producer {self._exchange}")
             return False

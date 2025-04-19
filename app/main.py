@@ -3,7 +3,7 @@ from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .mq import initialize_rabbitmq, shutdown_rabbitmq
-from .mq.consumers import *
+from .mq import consumers
 import asyncio
 import logging
 from .llm.gemini import Gemini
