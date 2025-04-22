@@ -23,12 +23,16 @@ class S3Client:
 
         self._initialized = True
 
+        self.bucket_name = os.environ.get("AWS_BUCKET_NAME", None)
+        if not self.bucket_name:
+            raise ValueError("AWS bucket name not found")
+
     def __new__(cls):
         if cls.instance is None:
             cls.instance = super(S3Client, cls).__new__(cls)
             cls.instance._initialized = False
         return cls.instance
     
-    def retrieve_object(self, bucket_name: str, key: str):
-        response = self.client.get_object(Bucket=bucket_name, Key=key)
+    def retrieve_object(self, key: str):
+        response = self.client.get_object(Bucket=self.bucket_name, Key=key)
         return response["Body"].read()
