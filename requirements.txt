@@ -3,3 +3,4 @@ uvicorn
 pydantic
 pika
 google-genai
+boto3
