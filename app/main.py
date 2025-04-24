@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .mq import initialize_rabbitmq, shutdown_rabbitmq
 from .mq import consumers
+from .mq import producers
 import asyncio
 import logging
 from .llm.gemini import Gemini
@@ -50,6 +51,13 @@ class ConfigRequest(BaseModel):
     context_invalidation_time_seconds: int
     system_instruction: str
 
+@app.get("/test")
+async def test():
+    await producers.finish_review({
+        "feedback": "This is a test feedback",
+        "key": "1-1-test.pdf"
+    })
+    return {"message": "Hello, World!"}
 
 # Register an inference user with the given key
 # If context already exists, it won't change at all

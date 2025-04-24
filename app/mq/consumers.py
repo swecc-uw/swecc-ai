@@ -5,6 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 from ..aws.s3 import S3Client
 from ..llm.gemini import Gemini
+from .producers import finish_review
 
 
 RESUME_PROMPT = """
@@ -19,7 +20,7 @@ The resume is in PDF format. Please extract the text from the PDF and use it as 
 """
 
 @mq_consumer(
-  queue='to-review-queue',
+  queue='ai.to-review-queue',
   exchange='ai',
   routing_key='to-review'
 )
@@ -38,3 +39,7 @@ async def consume_to_review_message(body, properties):
 
   logger.info(f"Gemini response: {response}")
 
+  await finish_review({
+    "feedback": response,
+    "key": file_key
+  })
