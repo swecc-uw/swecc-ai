@@ -2,7 +2,7 @@ from . import producer as mq_producer
 import json
 
 @mq_producer(
-    exchange='ai',
+    exchange='swecc-ai-exchange',
     routing_key='reviewed'
 )
 async def finish_review(data: dict):

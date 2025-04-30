@@ -21,7 +21,7 @@ The resume is in PDF format. Please extract the text from the PDF and use it as 
 
 @mq_consumer(
   queue='ai.to-review-queue',
-  exchange='ai',
+  exchange='swecc-ai-exchange',
   routing_key='to-review'
 )
 async def consume_to_review_message(body, properties):
