@@ -17,6 +17,7 @@ Please provide a detailed review of the resume, including strengths and weakness
 4. Overall Impression: What is your overall impression of the candidate based on the resume?
 Please provide your feedback in a structured format, including the score and a summary of your review.
 The resume is in PDF format. Please extract the text from the PDF and use it as the input for your review.
+Output the feedback in in bullet points. Be clear and concise.
 """
 
 @mq_consumer(
