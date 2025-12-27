@@ -19,7 +19,7 @@ class Gemini:
     def __init__(self):
         if not hasattr(self, "initialized"):
             self.api_key = os.getenv("GEMINI_API_KEY")
-            self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+            self.model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
 
             if self.api_key is None:
                 raise ValueError("GEMINI_API_KEY environment variable not set")
